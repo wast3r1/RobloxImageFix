@@ -27,7 +27,9 @@
 
 ## Скриншоты
 
-> (сюда можно потом добавить скрины интерфейса)
+![Dashboard](screenshots/1.png)
+![Settings](screenshots/2.png)
+![Setup Wizard](screenshots/3.png)
 
 ---
 

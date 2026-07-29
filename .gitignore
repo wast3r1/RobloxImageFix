@@ -1,0 +1,10 @@
+bin/
+obj/
+dist/
+dist-tmp/
+*.user
+*.suo
+*.cache
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,690 @@
+﻿<Window x:Class="RobloxImageFix.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Width="1100" Height="720"
+        WindowStartupLocation="CenterScreen"
+        ContentRendered="Window_ContentRendered">
+
+    <Grid Margin="8">
+        <Border CornerRadius="20" Background="#0A000000">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="40" ShadowDepth="0" Color="#000000" Opacity="0.5" />
+            </Border.Effect>
+        </Border>
+
+        <Border CornerRadius="20" Background="{StaticResource BgGradient}" ClipToBounds="True">
+            <Grid>
+                <!-- Background Blur Circles -->
+                <Canvas x:Name="bgCanvas">
+                    <Ellipse Width="400" Height="400"
+                             Canvas.Left="50" Canvas.Top="-120"
+                             Fill="#0F7C6BFF">
+                        <Ellipse.Effect><BlurEffect Radius="140" /></Ellipse.Effect>
+                    </Ellipse>
+                    <Ellipse Width="300" Height="300"
+                             Canvas.Left="700" Canvas.Top="100"
+                             Fill="#0FA855F7">
+                        <Ellipse.Effect><BlurEffect Radius="120" /></Ellipse.Effect>
+                    </Ellipse>
+                    <Ellipse Width="250" Height="250"
+                             Canvas.Left="400" Canvas.Top="480"
+                             Fill="#0F7C6BFF">
+                        <Ellipse.Effect><BlurEffect Radius="100" /></Ellipse.Effect>
+                    </Ellipse>
+                    <Ellipse Width="180" Height="180"
+                             Canvas.Left="-40" Canvas.Top="380"
+                             Fill="#0F22C55E">
+                        <Ellipse.Effect><BlurEffect Radius="90" /></Ellipse.Effect>
+                    </Ellipse>
+                </Canvas>
+
+                <Rectangle Fill="#02FFFFFF" />
+
+                <!-- Main Layout -->
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- ===== TITLE BAR ===== -->
+                    <Grid Grid.Row="0" Height="48"
+                          Background="Transparent"
+                          MouseLeftButtonDown="TitleBar_MouseDown">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                    VerticalAlignment="Center" Margin="20,0,0,0">
+                            <Border Width="28" Height="28" CornerRadius="8"
+                                    Background="{StaticResource NeonButtonBg}">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="15" ShadowDepth="0" Color="#7C6BFF" Opacity="0.4" />
+                                </Border.Effect>
+                                <TextBlock Text="⚡" FontSize="16"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="Roblox Image Fix"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       Margin="10,0,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center" Margin="0,0,8,0">
+                            <Button x:Name="minimizeBtn"
+                                    Style="{StaticResource WindowControlButton}"
+                                    Click="Minimize_Click">
+                                <Path Data="M0,6 L10,6"
+                                      Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                                      StrokeThickness="1.5"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round" />
+                            </Button>
+                            <Button x:Name="closeBtn"
+                                    Style="{StaticResource WindowCloseButton}"
+                                    Click="Close_Click">
+                                <Path Data="M3,3 L9,9 M9,3 L3,9"
+                                      Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                                      StrokeThickness="1.5"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- ===== BODY ===== -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- ===== SIDEBAR ===== -->
+                        <Border Grid.Column="0"
+                                Background="{StaticResource BgSidebarBrush}"
+                                CornerRadius="0,0,0,20"
+                                x:Name="sidebarPanel">
+                            <Grid Margin="0,8,0,16">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Margin="16,16,16,24">
+                                    <TextBlock Text="Navigation"
+                                               FontSize="11"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="8,0,0,8" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1">
+                                    <Button x:Name="navDashboard"
+                                            Style="{StaticResource SidebarNavItem}"
+                                            Tag="Active"
+                                            Click="Nav_Click">
+                                        <TextBlock Text="🖼  Dashboard" />
+                                    </Button>
+                                    <Button x:Name="navSettings"
+                                            Style="{StaticResource SidebarNavItem}"
+                                            Click="Nav_Click">
+                                        <TextBlock Text="🔧  Settings" />
+                                    </Button>
+                                    <Button x:Name="navAbout"
+                                            Style="{StaticResource SidebarNavItem}"
+                                            Click="Nav_Click">
+                                        <TextBlock Text="ℹ️  About" />
+                                    </Button>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Margin="20,0,0,0">
+                                    <TextBlock Text="v1.0.0"
+                                               FontSize="11"
+                                               Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="Glass UI"
+                                               FontSize="10"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- ===== MAIN CONTENT ===== -->
+                        <ScrollViewer Grid.Column="1"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Padding="32,12,32,28"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto">
+                            <Grid>
+                                <!-- ===== DASHBOARD ===== -->
+                                <Grid x:Name="dashboardView">
+                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                    <!-- Header -->
+                                    <StackPanel Grid.Row="0" Margin="0,4,0,20">
+                                        <TextBlock Text="🖼  Dashboard"
+                                                   FontSize="26"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                                        <TextBlock Text="Roblox CDN Image Fix — DNS Configuration Tool"
+                                                   FontSize="13"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+
+                                    <!-- Top Info Cards Row -->
+                                    <Grid Grid.Row="1" Margin="0,0,0,20">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Status Card -->
+                                        <Border Grid.Column="0" Style="{StaticResource GlassCard}"
+                                                Padding="16" Margin="0,0,8,0">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Border x:Name="statusDot"
+                                                            Width="10" Height="10"
+                                                            CornerRadius="5"
+                                                            Background="{StaticResource SuccessBrush}"
+                                                            VerticalAlignment="Center"
+                                                            Margin="0,0,8,0" />
+                                                    <TextBlock Text="Status"
+                                                               FontSize="12"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock x:Name="statusText"
+                                                           Text="Connected"
+                                                           FontSize="18"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource SuccessBrush}"
+                                                           Margin="0,6,0,0" />
+                                                <TextBlock x:Name="statusDesc"
+                                                           Text="All systems operational"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Current DNS Card -->
+                                        <Border Grid.Column="1" Style="{StaticResource GlassCard}"
+                                                Padding="16" Margin="4,0">
+                                            <StackPanel>
+                                                <TextBlock Text="🌐  Current DNS"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource TextSecondaryBrush}" />
+                                                <TextBlock x:Name="currentDnsText"
+                                                           Text="Cloudflare"
+                                                           FontSize="18"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Margin="0,6,0,0" />
+                                                <TextBlock x:Name="currentDnsIp"
+                                                           Text="1.1.1.1"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource PrimaryBrush}"
+                                                           Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Selected Adapter Card -->
+                                        <Border Grid.Column="2" Style="{StaticResource GlassCard}"
+                                                Padding="16" Margin="8,0,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="🛜  Adapter"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource TextSecondaryBrush}" />
+                                                <TextBlock x:Name="currentAdapterText"
+                                                           Text="Auto"
+                                                           FontSize="18"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Margin="0,6,0,0" />
+                                                <TextBlock x:Name="adapterCountText"
+                                                           Text="All connected adapters"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Fix Images + Hosts Buttons -->
+                                    <Border Grid.Row="2" Style="{StaticResource GlassCard}"
+                                            Padding="24,20" Margin="0,0,0,20">
+                                        <StackPanel>
+                                            <Button x:Name="fixButton"
+                                                    Style="{StaticResource NeonButton}"
+                                                    Width="360" Height="52"
+                                                    HorizontalAlignment="Center"
+                                                    Click="FixImages_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="⚡" FontSize="18"
+                                                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <TextBlock x:Name="fixButtonText"
+                                                               Text="FIX IMAGES"
+                                                               FontSize="15"
+                                                               FontWeight="Bold"
+                                                               VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+
+                                            <!-- Progress Bar -->
+                                            <Grid Margin="0,12,0,0"
+                                                  Visibility="Collapsed" x:Name="progressArea">
+                                                <Border Style="{StaticResource ProgressBar}">
+                                                    <Border x:Name="progressFill"
+                                                             Width="0"
+                                                             Height="4"
+                                                             CornerRadius="2"
+                                                             HorizontalAlignment="Left"
+                                                             Background="{StaticResource PrimaryBrush}" />
+                                                </Border>
+                                                <TextBlock x:Name="progressText"
+                                                            Text="Applying DNS..."
+                                                            FontSize="12"
+                                                            Foreground="{StaticResource TextSecondaryBrush}"
+                                                            HorizontalAlignment="Center"
+                                                            Margin="0,8,0,0" />
+                                            </Grid>
+
+                                            <!-- Success Message -->
+                                            <TextBlock x:Name="successMessage"
+                                                        Text="✔ Images Fixed"
+                                                        FontSize="15"
+                                                        FontWeight="SemiBold"
+                                                        Foreground="{StaticResource SuccessBrush}"
+                                                        HorizontalAlignment="Center"
+                                                        Margin="0,12,0,0"
+                                                        Visibility="Collapsed" />
+
+                                            <!-- Hosts Button -->
+                                            <Button x:Name="hostsButton"
+                                                    Style="{StaticResource NeonButton}"
+                                                    Width="360" Height="46"
+                                                    HorizontalAlignment="Center"
+                                                    Margin="0,12,0,0"
+                                                    Click="AddHosts_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="📝" FontSize="16"
+                                                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <TextBlock Text="ADD HOSTS ENTRIES"
+                                                               FontSize="14"
+                                                               FontWeight="Bold"
+                                                               VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                            <TextBlock x:Name="hostsMessage"
+                                                        Text=""
+                                                        FontSize="13"
+                                                        HorizontalAlignment="Center"
+                                                        Margin="0,6,0,0"
+                                                        Visibility="Collapsed" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- DNS Servers -->
+                                    <StackPanel Grid.Row="3" Margin="0,0,0,20">
+                                        <TextBlock Text="🌐  DNS Servers"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Margin="0,0,0,10" />
+                                        <Border Style="{StaticResource GlassCard}" Padding="8">
+                                            <StackPanel>
+                                                <RadioButton x:Name="dnsGeohide"
+                                                              Style="{StaticResource DnsRadioItem}"
+                                                              GroupName="dns"
+                                                              Content="Geohide DNS  —  95.182.120.241"
+                                                              Checked="DnsOption_Checked" />
+                                                <RadioButton x:Name="dnsGeohideAlt"
+                                                              Style="{StaticResource DnsRadioItem}"
+                                                              GroupName="dns"
+                                                              Content="Geohide (Win11 Alt)  —  порт 444"
+                                                              Checked="DnsOption_Checked" />
+                                                <RadioButton x:Name="dnsGeohide1"
+                                                              Style="{StaticResource DnsRadioItem}"
+                                                              GroupName="dns"
+                                                              Content="Geohide 1  —  37.230.192.51"
+                                                              Checked="DnsOption_Checked" />
+                                                <RadioButton x:Name="dnsCloudflare"
+                                                             Style="{StaticResource DnsRadioItem}"
+                                                             GroupName="dns"
+                                                             Content="Cloudflare DNS  —  1.1.1.1"
+                                                             Checked="DnsOption_Checked" />
+                                                <RadioButton x:Name="dnsGoogle"
+                                                             Style="{StaticResource DnsRadioItem}"
+                                                             GroupName="dns"
+                                                             Content="Google DNS  —  8.8.8.8"
+                                                             Checked="DnsOption_Checked" />
+                                                <RadioButton x:Name="dnsQuad9"
+                                                             Style="{StaticResource DnsRadioItem}"
+                                                             GroupName="dns"
+                                                             Content="Quad9 DNS  —  9.9.9.9"
+                                                             Checked="DnsOption_Checked" />
+                                                <RadioButton x:Name="dnsCustom"
+                                                             Style="{StaticResource DnsRadioItem}"
+                                                             GroupName="dns"
+                                                             Content="Custom DNS  —  Set manually"
+                                                             Checked="DnsOption_Checked" />
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <!-- Network Adapters -->
+                                    <StackPanel Grid.Row="4" Margin="0,0,0,20">
+                                        <TextBlock Text="🛜  Network Adapters"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Margin="0,0,0,10" />
+                                        <WrapPanel x:Name="adaptersPanel"
+                                                   Orientation="Horizontal" />
+                                        <TextBlock x:Name="noAdaptersText"
+                                                   Text="No adapters detected"
+                                                   FontSize="13"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Visibility="Collapsed" />
+                                    </StackPanel>
+
+                                    <!-- Tools Card -->
+                                    <Border Grid.Row="5" Style="{StaticResource GlassCard}"
+                                            Padding="20" Margin="0,0,0,16">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                                <TextBlock Text="🔄  Tools"
+                                                           FontSize="14"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Margin="0,0,0,10" />
+                                                <Button x:Name="flushDnsBtn"
+                                                        Style="{StaticResource NeonButton}"
+                                                        Height="38"
+                                                        Click="FlushDns_Click">
+                                                    <TextBlock Text="🔄 Flush DNS" FontSize="13" FontWeight="Bold" />
+                                                </Button>
+                                                <Button x:Name="pingBtn"
+                                                        Style="{StaticResource NeonButton}"
+                                                        Height="38"
+                                                        Margin="0,8,0,0"
+                                                        Click="PingTest_Click">
+                                                    <TextBlock Text="🧪 Ping Test" FontSize="13" FontWeight="Bold" />
+                                                </Button>
+                                                <TextBlock x:Name="pingResult"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,6,0,0"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                                <TextBlock Text="💾  DNS Backup"
+                                                           FontSize="14"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Margin="0,0,0,10" />
+                                                <Button x:Name="backupDnsBtn"
+                                                        Style="{StaticResource NeonButton}"
+                                                        Height="38"
+                                                        Click="BackupDns_Click">
+                                                    <TextBlock Text="💾 Backup DNS" FontSize="13" FontWeight="Bold" />
+                                                </Button>
+                                                <Button x:Name="restoreDnsBtn"
+                                                        Style="{StaticResource NeonButton}"
+                                                        Height="38"
+                                                        Margin="0,8,0,0"
+                                                        IsEnabled="False"
+                                                        Click="RestoreDns_Click">
+                                                    <TextBlock Text="↩ Restore DNS" FontSize="13" FontWeight="Bold" />
+                                                </Button>
+                                                <Button x:Name="clearHostsBtn"
+                                                        Style="{StaticResource NeonButton}"
+                                                        Height="38"
+                                                        Margin="0,8,0,0"
+                                                        Click="ClearHosts_Click">
+                                                    <TextBlock Text="🗑 Clear Hosts" FontSize="13" FontWeight="Bold" />
+                                                </Button>
+                                                <TextBlock x:Name="backupStatus"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,6,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Current DNS Info -->
+                                    <Border Grid.Row="6" Style="{StaticResource GlassCard}"
+                                            Padding="16" Margin="0,0,0,16"
+                                            Visibility="Collapsed" x:Name="currentDnsPanel">
+                                        <StackPanel>
+                                            <TextBlock Text="🔍  Current DNS Settings"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       Margin="0,0,0,8" />
+                                            <TextBlock x:Name="currentDnsInfo"
+                                                       FontSize="12"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- ===== SETTINGS ===== -->
+                                <Grid x:Name="settingsView"
+                                      Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock Text="🔧  Settings"
+                                                   FontSize="26"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                                        <TextBlock Text="Configure your preferences"
+                                                   FontSize="13"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="0,4,0,24" />
+
+                                        <Border Style="{StaticResource GlassCard}" Padding="20" Margin="0,0,0,12">
+                                            <StackPanel>
+                                                <TextBlock Text="Custom DNS Server"
+                                                           FontSize="15"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <TextBlock Text="Enter a custom DNS server IP address"
+                                                           FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,4,0,10" />
+                                                <TextBox x:Name="customDnsInput"
+                                                          Style="{StaticResource NeonTextBox}"
+                                                          Width="280"
+                                                          HorizontalAlignment="Left"
+                                                          Text="95.182.120.241" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Style="{StaticResource GlassCard}" Padding="20">
+                                            <StackPanel>
+                                                <TextBlock Text="⚙️  Startup"
+                                                           FontSize="15"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <TextBlock Text="Automatically launch at Windows startup"
+                                                           FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,4,0,10" />
+                                                <CheckBox x:Name="autorunCheck"
+                                                           Content="Run on startup"
+                                                           FontSize="14"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Checked="Autorun_Changed"
+                                                           Unchecked="Autorun_Changed" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Style="{StaticResource GlassCard}" Padding="20" Margin="0,12,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="📋  Diagnostic Log"
+                                                           FontSize="15"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <TextBlock Text="Generate a full diagnostic report for troubleshooting"
+                                                           FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,4,0,10" />
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Button x:Name="diagGenerateBtn"
+                                                            Style="{StaticResource NeonButton}"
+                                                            Height="38" Width="180"
+                                                            Click="GenerateDiagLog_Click">
+                                                        <TextBlock Text="📊 Generate Log" FontSize="13" FontWeight="Bold" />
+                                                    </Button>
+                                                    <Button x:Name="diagCopyBtn"
+                                                            Style="{StaticResource NeonButton}"
+                                                            Height="38" Width="120"
+                                                            Margin="8,0,0,0"
+                                                            IsEnabled="False"
+                                                            Click="CopyDiagLog_Click">
+                                                        <TextBlock Text="📋 Copy" FontSize="13" FontWeight="Bold" />
+                                                    </Button>
+                                                    <Button x:Name="diagSaveBtn"
+                                                            Style="{StaticResource NeonButton}"
+                                                            Height="38" Width="120"
+                                                            Margin="8,0,0,0"
+                                                            IsEnabled="False"
+                                                            Click="SaveDiagLog_Click">
+                                                        <TextBlock Text="💾 Save" FontSize="13" FontWeight="Bold" />
+                                                    </Button>
+                                                </StackPanel>
+                                                <Border MaxHeight="320"
+                                                        Margin="0,10,0,0"
+                                                        Background="#08000000"
+                                                        BorderBrush="{StaticResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8">
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                                  HorizontalScrollBarVisibility="Auto">
+                                                        <TextBox x:Name="diagLogOutput"
+                                                                 IsReadOnly="True"
+                                                                 FontFamily="Cascadia Code, Consolas, monospace"
+                                                                 FontSize="11"
+                                                                 Foreground="{StaticResource TextSecondaryBrush}"
+                                                                 Background="Transparent"
+                                                                 BorderThickness="0"
+                                                                 Padding="12"
+                                                                 TextWrapping="NoWrap"
+                                                                 AcceptsReturn="True"
+                                                                 Text="" />
+                                                    </ScrollViewer>
+                                                </Border>
+                                                <TextBlock x:Name="diagStatus"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- ===== ABOUT ===== -->
+                                <Grid x:Name="aboutView"
+                                      Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock Text="ℹ️  About"
+                                                   FontSize="26"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                                        <TextBlock Text="Roblox Image Fix"
+                                                   FontSize="13"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="0,4,0,24" />
+
+                                        <Border Style="{StaticResource GlassCard}" Padding="24" Margin="0,0,0,16">
+                                            <StackPanel>
+                                                <TextBlock FontSize="18"
+                                                           FontWeight="Bold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           TextWrapping="Wrap">
+                                                    <Run Text="Roblox Image Fix" />
+                                                    <LineBreak />
+                                                    <Run Text="CDN Image Fix" Foreground="{StaticResource PrimaryBrush}"
+                                                         FontSize="14" />
+                                                    <Run Text=" — DNS Configuration Tool" FontSize="14"
+                                                         Foreground="{StaticResource TextSecondaryBrush}" />
+                                                </TextBlock>
+                                                <TextBlock Text="Версия 1.0.0"
+                                                           FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,6,0,10" />
+                                                <TextBlock TextWrapping="Wrap"
+                                                           FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,0,0,12"
+                                                           LineHeight="20">
+Программа для быстрого восстановления изображений Roblox через настройку DNS. Помогает исправить проблемы с загрузкой CDN-контента (аватары, одежда, иконки и т.д.) путём переключения на рабочие DNS-серверы.
+
+Основные возможности:
+• Автоматическая настройка DNS
+• Поддержка популярных серверов (Geohide, Cloudflare, Google, Quad9)
+• Работа со всеми сетевыми адаптерами
+• Мгновенное применение изменений
+
+Разработано для удобства пользователей Roblox.
+                                                </TextBlock>
+                                                <TextBlock FontSize="12"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,0,0,8">
+Поддержать автора вы можете, написав ему в личные сообщения телеграмма: <Run Text="wearingdreams"
+      Foreground="{StaticResource PrimaryBrush}" />
+                                                </TextBlock>
+                                                <Button x:Name="telegramBtn"
+                                                        Style="{StaticResource NeonButton}"
+                                                        Height="42" Width="220"
+                                                        HorizontalAlignment="Left"
+                                                        Click="OpenTelegram_Click">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="✈" FontSize="16" Margin="0,0,8,0"
+                                                                   VerticalAlignment="Center" />
+                                                        <TextBlock Text="Telegram"
+                                                                   FontSize="14" FontWeight="Bold"
+                                                                   VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

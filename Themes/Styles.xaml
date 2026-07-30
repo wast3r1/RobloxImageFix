@@ -307,4 +307,292 @@
         </Style.Triggers>
     </Style>
 
+    <!-- ===== CUSTOM SCROLLBAR ===== -->
+    <SolidColorBrush x:Key="ScrollThumbBrush" Color="#6D5EF7" />
+    <SolidColorBrush x:Key="ScrollThumbHoverBrush" Color="#7C6EFF" />
+    <SolidColorBrush x:Key="ScrollThumbActiveBrush" Color="#9387FF" />
+    <SolidColorBrush x:Key="ScrollTrackBrush" Color="#08FFFFFF" />
+
+    <Style x:Key="ScrollBarPageButton" TargetType="RepeatButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent" Height="0" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CustomScrollBar" TargetType="ScrollBar">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid>
+                        <Border x:Name="trackBorder"
+                                Background="{StaticResource ScrollTrackBrush}"
+                                CornerRadius="999"
+                                Margin="0,2"
+                                Opacity="0">
+                            <Border.Effect>
+                                <BlurEffect Radius="4" />
+                            </Border.Effect>
+                        </Border>
+                        <Track x:Name="PART_Track">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Style>
+                                        <Style TargetType="Thumb">
+                                            <Setter Property="Height" Value="40" />
+                                            <Setter Property="Width" Value="6" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Thumb">
+                                                        <Grid>
+                                                            <Border x:Name="thumbGlow"
+                                                                    Width="14" Height="{TemplateBinding Height}"
+                                                                    CornerRadius="999"
+                                                                    Background="#207C6BFF"
+                                                                    Opacity="0"
+                                                                    HorizontalAlignment="Center" />
+                                                            <Border x:Name="thumbBorder"
+                                                                    Width="6" Height="{TemplateBinding Height}"
+                                                                    CornerRadius="999"
+                                                                    Background="{StaticResource ScrollThumbBrush}"
+                                                                    HorizontalAlignment="Center">
+                                                                <Border.Effect>
+                                                                    <DropShadowEffect BlurRadius="8" ShadowDepth="0"
+                                                                                      Color="#7C6BFF" Opacity="0.3" />
+                                                                </Border.Effect>
+                                                            </Border>
+                                                        </Grid>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Trigger.EnterActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard>
+                                                                            <ColorAnimation Storyboard.TargetName="thumbBorder"
+                                                                                             Storyboard.TargetProperty="(Border.Background).Color"
+                                                                                             To="#7C6EFF" Duration="0:0:0.2" />
+                                                                            <DoubleAnimation Storyboard.TargetName="thumbGlow"
+                                                                                             Storyboard.TargetProperty="Opacity"
+                                                                                             To="1" Duration="0:0:0.2" />
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </Trigger.EnterActions>
+                                                                <Trigger.ExitActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard>
+                                                                            <ColorAnimation Storyboard.TargetName="thumbBorder"
+                                                                                             Storyboard.TargetProperty="(Border.Background).Color"
+                                                                                             To="#6D5EF7" Duration="0:0:0.2" />
+                                                                            <DoubleAnimation Storyboard.TargetName="thumbGlow"
+                                                                                             Storyboard.TargetProperty="Opacity"
+                                                                                             To="0" Duration="0:0:0.2" />
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </Trigger.ExitActions>
+                                                            </Trigger>
+                                                            <Trigger Property="IsDragging" Value="True">
+                                                                <Trigger.EnterActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard>
+                                                                            <ColorAnimation Storyboard.TargetName="thumbBorder"
+                                                                                             Storyboard.TargetProperty="(Border.Background).Color"
+                                                                                             To="#9387FF" Duration="0:0:0.1" />
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </Trigger.EnterActions>
+                                                                <Trigger.ExitActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard>
+                                                                            <ColorAnimation Storyboard.TargetName="thumbBorder"
+                                                                                             Storyboard.TargetProperty="(Border.Background).Color"
+                                                                                             To="#7C6EFF" Duration="0:0:0.2" />
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </Trigger.ExitActions>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Thumb.Style>
+                                </Thumb>
+                            </Track.Thumb>
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource ScrollBarPageButton}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource ScrollBarPageButton}" />
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="trackBorder"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.2" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="trackBorder"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.2" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Global ScrollBar style — applies to all scrollbars in the app -->
+    <Style TargetType="ScrollBar">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid>
+                        <Border x:Name="trackBorder"
+                                Background="{StaticResource ScrollTrackBrush}"
+                                CornerRadius="999"
+                                Margin="0,2"
+                                Opacity="0">
+                            <Border.Effect>
+                                <BlurEffect Radius="4" />
+                            </Border.Effect>
+                        </Border>
+                        <Track x:Name="PART_Track">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Style>
+                                        <Style TargetType="Thumb">
+                                            <Setter Property="MinHeight" Value="24" />
+                                            <Setter Property="Width" Value="6" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Thumb">
+                                                        <Grid>
+                                                            <Border x:Name="thumbGlow"
+                                                                    Width="14"
+                                                                    CornerRadius="999"
+                                                                    Background="#207C6BFF"
+                                                                    Opacity="0"
+                                                                    HorizontalAlignment="Center" />
+                                                            <Border x:Name="thumbBorder"
+                                                                    Width="6"
+                                                                    CornerRadius="999"
+                                                                    Background="{StaticResource ScrollThumbBrush}"
+                                                                    HorizontalAlignment="Center">
+                                                                <Border.Effect>
+                                                                    <DropShadowEffect BlurRadius="8" ShadowDepth="0"
+                                                                                      Color="#7C6BFF" Opacity="0.3" />
+                                                                </Border.Effect>
+                                                            </Border>
+                                                        </Grid>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Trigger.EnterActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard>
+                                                                            <ColorAnimation Storyboard.TargetName="thumbBorder"
+                                                                                             Storyboard.TargetProperty="(Border.Background).Color"
+                                                                                             To="#7C6EFF" Duration="0:0:0.2" />
+                                                                            <DoubleAnimation Storyboard.TargetName="thumbGlow"
+                                                                                             Storyboard.TargetProperty="Opacity"
+                                                                                             To="1" Duration="0:0:0.2" />
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </Trigger.EnterActions>
+                                                                <Trigger.ExitActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard>
+                                                                            <ColorAnimation Storyboard.TargetName="thumbBorder"
+                                                                                             Storyboard.TargetProperty="(Border.Background).Color"
+                                                                                             To="#6D5EF7" Duration="0:0:0.2" />
+                                                                            <DoubleAnimation Storyboard.TargetName="thumbGlow"
+                                                                                             Storyboard.TargetProperty="Opacity"
+                                                                                             To="0" Duration="0:0:0.2" />
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </Trigger.ExitActions>
+                                                            </Trigger>
+                                                            <Trigger Property="IsDragging" Value="True">
+                                                                <Trigger.EnterActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard>
+                                                                            <ColorAnimation Storyboard.TargetName="thumbBorder"
+                                                                                             Storyboard.TargetProperty="(Border.Background).Color"
+                                                                                             To="#9387FF" Duration="0:0:0.1" />
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </Trigger.EnterActions>
+                                                                <Trigger.ExitActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard>
+                                                                            <ColorAnimation Storyboard.TargetName="thumbBorder"
+                                                                                             Storyboard.TargetProperty="(Border.Background).Color"
+                                                                                             To="#7C6EFF" Duration="0:0:0.2" />
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </Trigger.ExitActions>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Thumb.Style>
+                                </Thumb>
+                            </Track.Thumb>
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource ScrollBarPageButton}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource ScrollBarPageButton}" />
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="trackBorder"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.2" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="trackBorder"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.2" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

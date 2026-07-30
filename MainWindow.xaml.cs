@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.NetworkInformation;
@@ -9,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
 namespace RobloxImageFix;
 
@@ -19,6 +21,12 @@ public partial class MainWindow : Window
     private bool _isFixing;
     private Storyboard? _startupAnim;
     private Dictionary<string, List<string>> _dnsBackup = new();
+    private readonly ObservableCollection<string> _operationLog = new();
+    private readonly List<int> _pingHistory = new();
+    private DispatcherTimer? _dnsMonitorTimer;
+    private string _lastSetPrimary = "";
+    private string _lastSetSecondary = "";
+    private static readonly string[] AllDnsIps = ["95.182.120.241", "45.155.204.190", "37.230.192.51", "1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4", "9.9.9.9", "149.112.112.112", "208.67.222.222", "208.67.220.220"];
 
     private static readonly Dictionary<string, (string primary, string secondary, string doh)> DnsProfiles = new()
     {
@@ -28,6 +36,7 @@ public partial class MainWindow : Window
         ["dnsCloudflare"] = ("1.1.1.1", "1.0.0.1", "https://cloudflare-dns.com/dns-query"),
         ["dnsGoogle"] = ("8.8.8.8", "8.8.4.4", "https://dns.google/dns-query"),
         ["dnsQuad9"] = ("9.9.9.9", "149.112.112.112", "https://dns.quad9.net/dns-query"),
+        ["dnsOpenDns"] = ("208.67.222.222", "208.67.220.220", ""),
         ["dnsCustom"] = ("", "", ""),
     };
 
@@ -63,7 +72,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         CheckAdmin();
         _currentNav = navDashboard;
-        foreach (var rb in new[] { dnsGeohide, dnsGeohideAlt, dnsGeohide1, dnsCloudflare, dnsGoogle, dnsQuad9, dnsCustom })
+        foreach (var rb in new[] { dnsGeohide, dnsGeohideAlt, dnsGeohide1, dnsCloudflare, dnsGoogle, dnsQuad9, dnsOpenDns, dnsCustom })
         {
             if (rb.Name == "dnsGeohide") { rb.IsChecked = true; break; }
         }
@@ -93,6 +102,13 @@ public partial class MainWindow : Window
             }
             Environment.Exit(0);
         }
+    }
+
+    private void LogOperation(string message)
+    {
+        var entry = $"[{DateTime.Now:HH:mm:ss}] {message}";
+        _operationLog.Add(entry);
+        if (_operationLog.Count > 200) _operationLog.RemoveAt(0);
     }
 
     private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
@@ -158,6 +174,7 @@ public partial class MainWindow : Window
     {
         if (_isFixing) return;
         _isFixing = true;
+        LogOperation("Fix started");
 
         SetStatus("Fixing", "#F59E0B", "Applying DNS changes...");
 
@@ -228,11 +245,15 @@ public partial class MainWindow : Window
             if (errors.Length == 0)
             {
                 SetStatus("Connected", "#22C55E", "DNS configured. CDN images restored.");
+                _lastSetPrimary = p;
+                _lastSetSecondary = s;
+                LogOperation($"DNS set to {p} / {s}");
                 ShowSuccess();
             }
             else
             {
                 SetStatus("Error", "#EF4444", errors.ToString().TrimEnd());
+                LogOperation($"Fix failed: {errors}");
                 ShowError(errors.ToString());
             }
         }
@@ -286,12 +307,14 @@ public partial class MainWindow : Window
     private async void BackupDns_Click(object sender, RoutedEventArgs e)
     {
         BackupCurrentDns();
-        backupStatus.Text = _dnsBackup.Count > 0
-            ? $"✔ Backed up {_dnsBackup.Sum(kv => kv.Value.Count)} DNS entries"
+        var count = _dnsBackup.Sum(kv => kv.Value.Count);
+        backupStatus.Text = count > 0
+            ? $"✔ Backed up {count} DNS entries"
             : "✖ No DNS servers found";
-        backupStatus.Foreground = _dnsBackup.Count > 0
+        backupStatus.Foreground = count > 0
             ? (Brush)FindResource("SuccessBrush")
             : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+        if (count > 0) LogOperation($"Backed up {count} DNS entries");
     }
 
     private async void RestoreDns_Click(object sender, RoutedEventArgs e)
@@ -299,6 +322,7 @@ public partial class MainWindow : Window
         restoreDnsBtn.IsEnabled = false;
         backupStatus.Text = "Restoring...";
         backupStatus.Foreground = (Brush)FindResource("TextPrimaryBrush");
+        LogOperation("Restoring DNS to DHCP...");
 
         var adapters = GetAllAdapters().Select(a => a.name).ToList();
         if (adapters.Count == 0)
@@ -346,12 +370,14 @@ public partial class MainWindow : Window
             SetStatus("Warning", "#F59E0B", "Some adapters had errors");
             backupStatus.Text = $"⚠ {errorLog}";
             backupStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+            LogOperation($"Restore had errors: {errorLog}");
         }
         else
         {
             SetStatus("Connected", "#22C55E", "All adapters restored to DHCP");
             backupStatus.Text = $"✔ DHCP restored on {adapters.Count} adapters";
             backupStatus.Foreground = (Brush)FindResource("SuccessBrush");
+            LogOperation($"DHCP restored on {adapters.Count} adapters");
         }
         restoreDnsBtn.IsEnabled = true;
     }
@@ -376,9 +402,10 @@ public partial class MainWindow : Window
     private async void FlushDns_Click(object sender, RoutedEventArgs e)
     {
         flushDnsBtn.IsEnabled = false;
+        LogOperation("Flushing DNS cache...");
         await FlushDns();
         flushDnsBtn.IsEnabled = true;
-
+        LogOperation("DNS cache flushed");
         SetStatus("Connected", "#22C55E", "DNS cache flushed");
     }
 
@@ -397,7 +424,10 @@ public partial class MainWindow : Window
             {
                 var reply = await ping.SendPingAsync(target, 3000);
                 if (reply.Status == IPStatus.Success)
+                {
                     results.AppendLine($"✅ {target}: {reply.RoundtripTime}ms");
+                    RecordPing(target, (int)reply.RoundtripTime);
+                }
                 else
                     results.AppendLine($"❌ {target}: {reply.Status}");
             }
@@ -409,6 +439,7 @@ public partial class MainWindow : Window
 
         pingResult.Text = results.ToString().TrimEnd();
         pingBtn.IsEnabled = true;
+        LogOperation("Ping test completed");
     }
 
     private async void ClearHosts_Click(object sender, RoutedEventArgs e)
@@ -423,7 +454,11 @@ public partial class MainWindow : Window
                 l.Trim().Equals(e, StringComparison.OrdinalIgnoreCase))).ToArray();
             var removed = existing.Length - filtered.Length;
 
-            if (removed > 0) await File.WriteAllLinesAsync(hostsPath, filtered);
+            if (removed > 0)
+            {
+                await File.WriteAllLinesAsync(hostsPath, filtered);
+                LogOperation($"Removed {removed} hosts entries");
+            }
 
             backupStatus.Text = removed > 0 ? $"✔ Removed {removed} hosts entries" : "ℹ No entries to remove";
             backupStatus.Foreground = (Brush)FindResource("SuccessBrush");
@@ -432,6 +467,7 @@ public partial class MainWindow : Window
         {
             backupStatus.Text = $"✖ Error: {ex.Message}";
             backupStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+            LogOperation($"Clear hosts error: {ex.Message}");
         }
         finally
         {
@@ -496,6 +532,7 @@ public partial class MainWindow : Window
             }
 
             await File.WriteAllLinesAsync(hostsPath, existing);
+            LogOperation($"Added {added} hosts entries");
 
             hostsMessage.Text = $"✔ Added {added} hosts entries";
             hostsMessage.Foreground = FindResource("SuccessBrush") as Brush;
@@ -504,6 +541,7 @@ public partial class MainWindow : Window
         {
             hostsMessage.Text = $"✖ Error: {ex.Message}";
             hostsMessage.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+            LogOperation($"Add hosts error: {ex.Message}");
         }
         finally
         {
@@ -788,6 +826,224 @@ public partial class MainWindow : Window
         catch { return false; }
     }
 
+    private async void SpeedTest_Click(object sender, RoutedEventArgs e)
+    {
+        speedTestBtn.IsEnabled = false;
+        speedTestResult.Text = "Testing...";
+        LogOperation("Speed test started");
+
+        var results = new StringBuilder();
+        using var ping = new Ping();
+
+        foreach (var ip in AllDnsIps)
+        {
+            try
+            {
+                var reply = await ping.SendPingAsync(ip, 3000);
+                var ms = reply.Status == IPStatus.Success ? $"{reply.RoundtripTime}ms" : reply.Status.ToString();
+                results.AppendLine($"  {ip,-18} → {ms}");
+            }
+            catch (Exception)
+            {
+                results.AppendLine($"  {ip,-18} → error");
+            }
+            await Task.Delay(50);
+        }
+
+        speedTestResult.Text = results.ToString().TrimEnd();
+        speedTestBtn.IsEnabled = true;
+        LogOperation("Speed test completed");
+    }
+
+    private async void SpeedTestAll_Click(object sender, RoutedEventArgs e)
+    {
+        speedTestAllBtn.IsEnabled = false;
+        speedTestAllResult.Text = "Pinging all providers...";
+        LogOperation("Comparing all DNS providers");
+
+        var results = new StringBuilder();
+        using var ping = new Ping();
+
+        foreach (var kv in DnsProfiles)
+        {
+            if (kv.Key == "dnsCustom" || string.IsNullOrWhiteSpace(kv.Value.primary)) continue;
+            var label = kv.Key switch
+            {
+                "dnsGeohide" => "Geohide",
+                "dnsGeohideAlt" => "Geohide Alt",
+                "dnsGeohide1" => "Geohide 1",
+                "dnsCloudflare" => "Cloudflare",
+                "dnsGoogle" => "Google",
+                "dnsQuad9" => "Quad9",
+                "dnsOpenDns" => "OpenDNS",
+                _ => kv.Key
+            };
+            try
+            {
+                var reply = await ping.SendPingAsync(kv.Value.primary, 3000);
+                var ms = reply.Status == IPStatus.Success ? $"{reply.RoundtripTime}ms" : "✗";
+                results.AppendLine($"  {label,-16} {kv.Value.primary,-16} → {ms}");
+            }
+            catch
+            {
+                results.AppendLine($"  {label,-16} {kv.Value.primary,-16} → ✗");
+            }
+        }
+
+        speedTestAllResult.Text = results.ToString().TrimEnd();
+        speedTestAllBtn.IsEnabled = true;
+        LogOperation("Provider comparison done");
+    }
+
+    private async void MonitorDns_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (monitorDnsCheck.IsChecked == true)
+        {
+            _dnsMonitorTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+            _dnsMonitorTimer.Tick += async (_, _) => await CheckAndRestoreDns();
+            _dnsMonitorTimer.Start();
+            LogOperation("DNS monitoring enabled (30s interval)");
+        }
+        else
+        {
+            _dnsMonitorTimer?.Stop();
+            _dnsMonitorTimer = null;
+            LogOperation("DNS monitoring disabled");
+        }
+    }
+
+    private async Task CheckAndRestoreDns()
+    {
+        if (_isFixing || string.IsNullOrWhiteSpace(_lastSetPrimary)) return;
+
+        try
+        {
+            var psi = new ProcessStartInfo("netsh", $"""interface ip show dns name="!" """)
+            {
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            if (proc == null) return;
+            var output = await proc.StandardOutput.ReadToEndAsync();
+
+            var found = false;
+            foreach (var line in output.Split('\n'))
+            {
+                var t = line.Trim();
+                if ((t.StartsWith("Сервер DNS", StringComparison.OrdinalIgnoreCase) ||
+                     t.StartsWith("DNS Server", StringComparison.OrdinalIgnoreCase)) &&
+                    t.Contains(_lastSetPrimary))
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                LogOperation($"⚠ DNS was reset! Restoring {_lastSetPrimary}...");
+                var adapters = GetAllAdapters().Select(a => a.name).ToList();
+                foreach (var adapter in adapters)
+                {
+                    await SetDnsOnAdapter(adapter, _lastSetPrimary, _lastSetSecondary);
+                }
+                await FlushDns();
+                LogOperation($"✔ DNS restored to {_lastSetPrimary}");
+            }
+        }
+        catch { }
+    }
+
+    private void RecordPing(string host, int ms)
+    {
+        _pingHistory.Add(ms);
+        if (_pingHistory.Count > 60) _pingHistory.RemoveAt(0);
+        DrawPingGraph();
+    }
+
+    private void DrawPingGraph()
+    {
+        if (pingGraphCanvas == null) return;
+        pingGraphCanvas.Children.Clear();
+
+        if (_pingHistory.Count == 0) return;
+
+        var w = pingGraphCanvas.ActualWidth;
+        var h = pingGraphCanvas.ActualHeight;
+        if (w <= 0 || h <= 0) return;
+
+        var maxMs = Math.Max(_pingHistory.Max(), 10);
+        var stepX = w / Math.Max(_pingHistory.Count - 1, 1);
+        var points = new PointCollection();
+
+        for (int i = 0; i < _pingHistory.Count; i++)
+        {
+            var x = i * stepX;
+            var y = h - (_pingHistory[i] / (double)maxMs) * (h - 8) - 4;
+            points.Add(new Point(x, y));
+        }
+
+        if (points.Count < 2) return;
+
+        var polyline = new System.Windows.Shapes.Polyline
+        {
+            Points = points,
+            Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7C6BFF")),
+            StrokeThickness = 2,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round,
+        };
+        polyline.Effect = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            BlurRadius = 8, ShadowDepth = 0, Color = (Color)ColorConverter.ConvertFromString("#7C6BFF"), Opacity = 0.3
+        };
+        pingGraphCanvas.Children.Add(polyline);
+
+        var avg = _pingHistory.Average();
+        var avgLine = new System.Windows.Shapes.Line
+        {
+            X1 = 0, Y1 = h - (avg / maxMs) * (h - 8) - 4,
+            X2 = w, Y2 = h - (avg / maxMs) * (h - 8) - 4,
+            Stroke = new SolidColorBrush(Color.FromArgb(60, 0xFF, 0xFF, 0xFF)),
+            StrokeThickness = 1,
+            StrokeDashArray = new DoubleCollection([4, 4]),
+        };
+        pingGraphCanvas.Children.Add(avgLine);
+
+        pingGraphInfo.Text = $"Avg: {avg:F0}ms  |  Last: {_pingHistory[^1]}ms  |  Samples: {_pingHistory.Count}";
+    }
+
+    private async void QuickPing_Click(object sender, RoutedEventArgs e)
+    {
+        quickPingBtn.IsEnabled = false;
+        using var ping = new Ping();
+        try
+        {
+            var reply = await ping.SendPingAsync("roblox.com", 5000);
+            if (reply.Status == IPStatus.Success)
+            {
+                RecordPing("roblox.com", (int)reply.RoundtripTime);
+                quickPingResult.Text = $"✔ {reply.RoundtripTime}ms";
+                quickPingResult.Foreground = (Brush)FindResource("SuccessBrush");
+            }
+            else
+            {
+                quickPingResult.Text = $"✗ {reply.Status}";
+                quickPingResult.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+            }
+            LogOperation($"Ping roblox.com: {reply.Status} ({reply.RoundtripTime}ms)");
+        }
+        catch (Exception ex)
+        {
+            quickPingResult.Text = $"✗ {ex.Message}";
+            quickPingResult.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+        }
+        quickPingBtn.IsEnabled = true;
+    }
+
     private async void GenerateDiagLog_Click(object sender, RoutedEventArgs e)
     {
         diagGenerateBtn.IsEnabled = false;
@@ -989,7 +1245,260 @@ public partial class MainWindow : Window
             _startupAnim.Completed += (_, _) => Opacity = 1;
             _startupAnim.Begin();
             ShowCurrentDns();
+            operationLogList.ItemsSource = _operationLog;
+            mainScrollViewer?.ScrollToTop();
         }
         catch { Opacity = 1; }
+    }
+
+    private void DnsDropZone_DragEnter(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            e.Effects = DragDropEffects.Copy;
+            dnsDropBg.Background = (Brush)FindResource("NeonButtonBg")!;
+            dnsDropText.Text = "📄 Drop here to analyze";
+        }
+        else
+            e.Effects = DragDropEffects.None;
+    }
+
+    private void DnsDropZone_DragLeave(object sender, DragEventArgs e)
+    {
+        dnsDropBg.Background = (Brush)new BrushConverter().ConvertFromString("#0A7C6BFF")!;
+        dnsDropText.Text = "📄 Drop .txt file here";
+    }
+
+    private async void DnsDropZone_Drop(object sender, DragEventArgs e)
+    {
+        dnsDropBg.Background = (Brush)new BrushConverter().ConvertFromString("#0A7C6BFF")!;
+        dnsDropText.Text = "📄 Drop .txt file here";
+
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+        var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        var path = files.FirstOrDefault();
+        if (path == null || !path.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+        {
+            dnsAnalyzeOutput.Text = "⚠ Drop only .txt files";
+            dnsAnalyzeResult.Visibility = Visibility.Visible;
+            return;
+        }
+
+        try
+        {
+            var content = await File.ReadAllTextAsync(path);
+            var diagnosis = AnalyzeDnsDiagnostic(content);
+            dnsAnalyzeOutput.Text = diagnosis;
+            dnsAnalyzeResult.Visibility = Visibility.Visible;
+            LogOperation($"DNS analysis: {Path.GetFileName(path)}");
+        }
+        catch (Exception ex)
+        {
+            dnsAnalyzeOutput.Text = $"✖ Error reading file: {ex.Message}";
+            dnsAnalyzeResult.Visibility = Visibility.Visible;
+        }
+    }
+
+    private static string AnalyzeDnsDiagnostic(string content)
+    {
+        var result = new System.Text.StringBuilder();
+        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        bool hasDnsServers = false, hasDnsErrors = false, hasTimeout = false;
+        bool hasNoReply = false, hasNonExistentDomain = false, hasServerFail = false;
+        bool hasDhcpEnabled = false;
+        var dnsServers = new List<string>();
+
+        // Detect command type
+        bool isIpconfig = content.Contains("Windows IP Configuration", StringComparison.OrdinalIgnoreCase)
+                          || content.Contains("IPv4 Address", StringComparison.OrdinalIgnoreCase);
+        bool isNslookup = content.Contains("nslookup", StringComparison.OrdinalIgnoreCase)
+                          || content.Contains("Non-authoritative answer", StringComparison.OrdinalIgnoreCase)
+                          || content.Contains("Address:", StringComparison.OrdinalIgnoreCase)
+                          && !content.Contains("IPv4", StringComparison.OrdinalIgnoreCase);
+        bool isPing = content.Contains("Reply from", StringComparison.OrdinalIgnoreCase)
+                      || content.Contains("Request timed out", StringComparison.OrdinalIgnoreCase)
+                      || content.Contains("TTL=", StringComparison.OrdinalIgnoreCase);
+        bool isNetsh = content.Contains("netsh", StringComparison.OrdinalIgnoreCase)
+                       || content.Contains("DNS servers", StringComparison.OrdinalIgnoreCase);
+
+        foreach (var line in lines)
+        {
+            var t = line.Trim();
+
+            if (t.Contains("DHCP Enabled", StringComparison.OrdinalIgnoreCase) && t.Contains("Yes", StringComparison.OrdinalIgnoreCase))
+                hasDhcpEnabled = true;
+
+            if (t.Contains("DNS Servers", StringComparison.OrdinalIgnoreCase)
+                || t.StartsWith("DNS servers", StringComparison.OrdinalIgnoreCase))
+            {
+                hasDnsServers = true;
+                var parts = t.Split(':', '.');
+                var ip = System.Text.RegularExpressions.Regex.Match(t, @"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b");
+                if (ip.Success) dnsServers.Add(ip.Value);
+                continue;
+            }
+
+            // Also capture IP lines following "DNS Servers"
+            var ipMatch = System.Text.RegularExpressions.Regex.Match(t, @"^\s*(\.?\s*)?(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*$");
+            if (ipMatch.Success && hasDnsServers)
+                dnsServers.Add(ipMatch.Groups[2].Value);
+
+            if (t.Contains("timed out", StringComparison.OrdinalIgnoreCase)
+                || t.Contains("timeout", StringComparison.OrdinalIgnoreCase))
+                hasTimeout = true;
+
+            if (t.Contains("Reply from", StringComparison.OrdinalIgnoreCase) && t.Contains("Destination host unreachable", StringComparison.OrdinalIgnoreCase))
+                hasNoReply = true;
+
+            if (t.Contains("Non-existent domain", StringComparison.OrdinalIgnoreCase)
+                || t.Contains("NXDOMAIN", StringComparison.OrdinalIgnoreCase))
+                hasNonExistentDomain = true;
+
+            if (t.Contains("server fail", StringComparison.OrdinalIgnoreCase)
+                || t.Contains("SERVFAIL", StringComparison.OrdinalIgnoreCase))
+                hasServerFail = true;
+
+            if (t.Contains("UnKnown", StringComparison.OrdinalIgnoreCase)
+                || (t.Contains("can't find", StringComparison.OrdinalIgnoreCase))
+                || (t.Contains("DNS request timed out", StringComparison.OrdinalIgnoreCase)))
+                hasDnsErrors = true;
+
+        }
+
+        // Build diagnosis
+        if (isIpconfig)
+        {
+            result.AppendLine("📋 Detected: ipconfig /all");
+            result.AppendLine();
+
+            if (dnsServers.Count == 0)
+                result.AppendLine("❌ No DNS servers configured on any adapter");
+            else if (dnsServers.Count > 0)
+            {
+                result.AppendLine($"✓ DNS servers found: {string.Join(", ", dnsServers)}");
+                foreach (var dns in dnsServers)
+                {
+                    if (dns.StartsWith("192.168.") || dns.StartsWith("10.") || dns.StartsWith("172.16."))
+                        result.AppendLine($"⚠  {dns} is a local/private IP — likely your router (not a public resolver)");
+                }
+            }
+
+            if (hasDhcpEnabled)
+                result.AppendLine("ℹ DHCP is enabled — DNS may be assigned automatically");
+
+            result.AppendLine();
+            result.AppendLine("💡 Suggestion: Set a static public DNS (Cloudflare 1.1.1.1, Google 8.8.8.8)");
+        }
+        else if (isNslookup)
+        {
+            result.AppendLine("📋 Detected: nslookup");
+            result.AppendLine();
+
+            if (hasTimeout)
+                result.AppendLine("❌ DNS request timed out — DNS server is unreachable or blocking queries");
+
+            if (hasServerFail)
+                result.AppendLine("❌ DNS server failure (SERVFAIL) — server misconfiguration or overload");
+
+            if (hasNonExistentDomain)
+                result.AppendLine("⚠ Domain does not exist (NXDOMAIN) — check domain spelling");
+
+            if (hasDnsErrors)
+                result.AppendLine("❌ DNS resolution failed — the DNS server is not responding correctly");
+
+            if (dnsServers.Count > 0)
+                result.AppendLine($"ℹ Using DNS server: {dnsServers[0]}");
+
+            if (!hasTimeout && !hasServerFail && !hasDnsErrors)
+                result.AppendLine("✓ DNS resolution seems OK — no errors detected");
+
+            result.AppendLine();
+            result.AppendLine("💡 Suggestion: Try ping 8.8.8.8 — if that works but nslookup fails, it's a DNS issue");
+        }
+        else if (isPing)
+        {
+            result.AppendLine("📋 Detected: ping");
+            result.AppendLine();
+
+            if (hasTimeout)
+                result.AppendLine("❌ Packets timed out — host unreachable or firewall blocking");
+
+            if (hasNoReply)
+                result.AppendLine("❌ Destination host unreachable — network or routing issue");
+
+            int received = 0, sent = 0;
+            var statMatch = System.Text.RegularExpressions.Regex.Match(content, @"Packets: Sent = (\d+), Received = (\d+)");
+            if (statMatch.Success)
+            {
+                sent = int.Parse(statMatch.Groups[1].Value);
+                received = int.Parse(statMatch.Groups[2].Value);
+                result.AppendLine($"📊 Packets: {received}/{sent} received ({(sent > 0 ? received * 100 / sent : 0)}%)");
+                if (received == sent)
+                    result.AppendLine("✓ All packets received — good connectivity");
+                else if (received > 0)
+                    result.AppendLine($"⚠ Packet loss detected ({sent - received} lost)");
+                else
+                    result.AppendLine("❌ Complete packet loss — no connectivity");
+            }
+            else
+            {
+                // Count reply vs timeout lines
+                var replies = lines.Count(l => l.Contains("Reply from", StringComparison.OrdinalIgnoreCase));
+                var timeouts = lines.Count(l => l.Contains("timed out", StringComparison.OrdinalIgnoreCase));
+                var total = replies + timeouts;
+                if (total > 0)
+                {
+                    result.AppendLine($"📊 Replies: {replies}/{total}");
+                    if (timeouts > 0)
+                        result.AppendLine($"⚠ {timeouts} packet(s) lost");
+                }
+            }
+
+            result.AppendLine();
+            result.AppendLine("💡 Suggestion: Ping 8.8.8.8 vs ping google.com to distinguish network vs DNS issue");
+        }
+        else if (isNetsh)
+        {
+            result.AppendLine("📋 Detected: netsh interface ip show dns");
+            result.AppendLine();
+
+            if (dnsServers.Count == 0)
+                result.AppendLine("❌ No DNS servers configured — adapters use DHCP");
+            else
+            {
+                result.AppendLine($"✓ DNS: {string.Join(", ", dnsServers)}");
+                foreach (var dns in dnsServers)
+                {
+                    if (dns.StartsWith("192.168.") || dns.StartsWith("10.") || dns.StartsWith("172.16."))
+                        result.AppendLine($"⚠  {dns} is a local IP (router), consider public DNS");
+                }
+            }
+
+            result.AppendLine();
+            result.AppendLine("💡 Suggestion: Use 'ipconfig /all' for full network diagnostics");
+        }
+        else
+        {
+            result.AppendLine("📋 Unknown format — guessing...");
+            result.AppendLine();
+
+            if (hasTimeout)
+                result.AppendLine("❌ Timeouts detected — connectivity problem");
+            if (hasDnsErrors || hasServerFail)
+                result.AppendLine("❌ DNS errors detected");
+            if (hasNonExistentDomain)
+                result.AppendLine("⚠ NXDOMAIN detected");
+            if (dnsServers.Count > 0)
+                result.AppendLine($"ℹ DNS servers found: {string.Join(", ", dnsServers)}");
+
+            if (!hasTimeout && !hasDnsErrors && !hasServerFail && dnsServers.Count == 0)
+                result.AppendLine("ℹ No obvious DNS or network issues detected in the log");
+
+            result.AppendLine();
+            result.AppendLine("💡 Suggestion: Run ipconfig /all and nslookup google.com for better diagnosis");
+        }
+
+        return result.ToString().TrimEnd();
     }
 }

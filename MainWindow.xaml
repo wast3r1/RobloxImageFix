@@ -9,6 +9,7 @@
         Background="Transparent"
         Width="1100" Height="720"
         WindowStartupLocation="CenterScreen"
+        Title="Roblox Image Fix"
         ContentRendered="Window_ContentRendered">
 
     <Grid Margin="8">
@@ -162,7 +163,8 @@
                         </Border>
 
                         <!-- ===== MAIN CONTENT ===== -->
-                        <ScrollViewer Grid.Column="1"
+                        <ScrollViewer x:Name="mainScrollViewer"
+                                      Grid.Column="1"
                                       Background="Transparent"
                                       BorderThickness="0"
                                       Padding="32,12,32,28"
@@ -172,6 +174,8 @@
                                 <!-- ===== DASHBOARD ===== -->
                                 <Grid x:Name="dashboardView">
                         <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
@@ -384,10 +388,15 @@
                                                              Content="Google DNS  —  8.8.8.8"
                                                              Checked="DnsOption_Checked" />
                                                 <RadioButton x:Name="dnsQuad9"
-                                                             Style="{StaticResource DnsRadioItem}"
-                                                             GroupName="dns"
-                                                             Content="Quad9 DNS  —  9.9.9.9"
-                                                             Checked="DnsOption_Checked" />
+                                                              Style="{StaticResource DnsRadioItem}"
+                                                              GroupName="dns"
+                                                              Content="Quad9 DNS  —  9.9.9.9"
+                                                              Checked="DnsOption_Checked" />
+                                                <RadioButton x:Name="dnsOpenDns"
+                                                              Style="{StaticResource DnsRadioItem}"
+                                                              GroupName="dns"
+                                                              Content="OpenDNS  —  208.67.222.222"
+                                                              Checked="DnsOption_Checked" />
                                                 <RadioButton x:Name="dnsCustom"
                                                              Style="{StaticResource DnsRadioItem}"
                                                              GroupName="dns"
@@ -481,8 +490,135 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- Current DNS Info -->
+                                    <!-- Speed Test -->
                                     <Border Grid.Row="6" Style="{StaticResource GlassCard}"
+                                            Padding="20" Margin="0,0,0,16">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                                <TextBlock Text="🚀  DNS Speed Test"
+                                                           FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Margin="0,0,0,8" />
+                                                <Button x:Name="speedTestBtn"
+                                                        Style="{StaticResource NeonButton}"
+                                                        Height="36" Width="200"
+                                                        HorizontalAlignment="Left"
+                                                        Click="SpeedTest_Click">
+                                                    <TextBlock Text="⚡ Ping All Servers" FontSize="12" FontWeight="Bold" />
+                                                </Button>
+                                                <TextBlock x:Name="speedTestResult"
+                                                           FontSize="11"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,6,0,0"
+                                                           FontFamily="Consolas"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                                <TextBlock Text="📊  Compare Providers"
+                                                           FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Margin="0,0,0,8" />
+                                                <Button x:Name="speedTestAllBtn"
+                                                        Style="{StaticResource NeonButton}"
+                                                        Height="36" Width="200"
+                                                        HorizontalAlignment="Left"
+                                                        Click="SpeedTestAll_Click">
+                                                    <TextBlock Text="📋 Compare All" FontSize="12" FontWeight="Bold" />
+                                                </Button>
+                                                <TextBlock x:Name="speedTestAllResult"
+                                                           FontSize="11"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,6,0,0"
+                                                           FontFamily="Consolas"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Ping Statistics Graph -->
+                                    <Border Grid.Row="7" Style="{StaticResource GlassCard}"
+                                            Padding="20" Margin="0,0,0,16">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="📈  Ping Statistics"
+                                                           FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                    <Button x:Name="quickPingBtn"
+                                                            Style="{StaticResource NeonButton}"
+                                                            Height="32" Width="100"
+                                                            Click="QuickPing_Click">
+                                                        <TextBlock Text="Ping Now" FontSize="11" FontWeight="Bold" />
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                            <Border Height="120" Margin="0,8,0,4"
+                                                    Background="#08000000"
+                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                    BorderThickness="1" CornerRadius="8">
+                                                <Canvas x:Name="pingGraphCanvas"
+                                                        Width="Auto" Height="120" />
+                                            </Border>
+                                            <TextBlock x:Name="pingGraphInfo"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Text="No data yet" />
+                                            <TextBlock x:Name="quickPingResult"
+                                                       FontSize="12"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Operation Log -->
+                                    <Border Grid.Row="8" Style="{StaticResource GlassCard}"
+                                            Padding="20" Margin="0,0,0,16">
+                                        <StackPanel>
+                                            <TextBlock Text="📋  Operation Log"
+                                                       FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       Margin="0,0,0,8" />
+                                            <Border MaxHeight="160"
+                                                    Background="#08000000"
+                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                    BorderThickness="1" CornerRadius="8">
+                                                <ListBox x:Name="operationLogList"
+                                                         Background="Transparent"
+                                                         BorderThickness="0"
+                                                         FontFamily="Consolas"
+                                                         FontSize="11"
+                                                         Foreground="{StaticResource TextSecondaryBrush}"
+                                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                    <ListBox.ItemContainerStyle>
+                                                        <Style TargetType="ListBoxItem">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                                            <Setter Property="Padding" Value="8,2" />
+                                                            <Setter Property="BorderThickness" Value="0" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                                        <ContentPresenter />
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </ListBox.ItemContainerStyle>
+                                                </ListBox>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Current DNS Info -->
+                                    <Border Grid.Row="9" Style="{StaticResource GlassCard}"
                                             Padding="16" Margin="0,0,0,16"
                                             Visibility="Collapsed" x:Name="currentDnsPanel">
                                         <StackPanel>
@@ -550,6 +686,83 @@
 
                                         <Border Style="{StaticResource GlassCard}" Padding="20" Margin="0,12,0,0">
                                             <StackPanel>
+                                                <TextBlock Text="👁  DNS Monitoring"
+                                                           FontSize="15"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <TextBlock Text="Automatically restore DNS if it gets reset"
+                                                           FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,4,0,10" />
+                                                <CheckBox x:Name="monitorDnsCheck"
+                                                           Content="Monitor and auto-restore DNS"
+                                                           FontSize="14"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Checked="MonitorDns_Toggled"
+                                                           Unchecked="MonitorDns_Toggled" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Style="{StaticResource GlassCard}" Padding="20" Margin="0,12,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="🧪  DNS Analyzer"
+                                                           FontSize="15"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <TextBlock Text="Drop ipconfig / nslookup / ping log to auto-diagnose DNS issues"
+                                                           FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,4,0,10" />
+                                                <Grid x:Name="dnsDropZone"
+                                                      Height="80"
+                                                      AllowDrop="True"
+                                                      Cursor="Hand"
+                                                      DragEnter="DnsDropZone_DragEnter"
+                                                      DragLeave="DnsDropZone_DragLeave"
+                                                      Drop="DnsDropZone_Drop">
+                                                    <Border x:Name="dnsDropBg"
+                                                            Background="#0A7C6BFF"
+                                                            CornerRadius="12" />
+                                                    <Rectangle Margin="2"
+                                                               Stroke="{StaticResource PrimaryBrush}"
+                                                               StrokeThickness="2"
+                                                               StrokeDashArray="6,4"
+                                                               RadiusX="10" RadiusY="10"
+                                                               IsHitTestVisible="False" />
+                                                    <TextBlock x:Name="dnsDropText"
+                                                               Text="📄 Drop .txt file here"
+                                                               FontSize="13"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               IsHitTestVisible="False" />
+                                                </Grid>
+                                                <Border x:Name="dnsAnalyzeResult"
+                                                        Margin="0,8,0,0"
+                                                        Background="#08000000"
+                                                        BorderBrush="{StaticResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8"
+                                                        Padding="12"
+                                                        MinHeight="40"
+                                                        Visibility="Collapsed">
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                                   MaxHeight="200">
+                                                        <TextBox x:Name="dnsAnalyzeOutput"
+                                                                 IsReadOnly="True"
+                                                                 FontFamily="Consolas"
+                                                                 FontSize="11"
+                                                                 Foreground="{StaticResource TextSecondaryBrush}"
+                                                                 Background="Transparent"
+                                                                 BorderThickness="0"
+                                                                 TextWrapping="Wrap" />
+                                                    </ScrollViewer>
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Style="{StaticResource GlassCard}" Padding="20" Margin="0,12,0,0">
+                                            <StackPanel>
                                                 <TextBlock Text="📋  Diagnostic Log"
                                                            FontSize="15"
                                                            FontWeight="SemiBold"
@@ -589,7 +802,7 @@
                                                         BorderThickness="1"
                                                         CornerRadius="8">
                                                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                                                  HorizontalScrollBarVisibility="Auto">
+                                                                   HorizontalScrollBarVisibility="Auto">
                                                         <TextBox x:Name="diagLogOutput"
                                                                  IsReadOnly="True"
                                                                  FontFamily="Cascadia Code, Consolas, monospace"

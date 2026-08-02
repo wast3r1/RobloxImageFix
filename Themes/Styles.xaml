@@ -92,6 +92,19 @@
         </Setter>
     </Style>
 
+    <!-- Danger Button Style -->
+    <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource NeonButton}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#E02424" Offset="0" />
+                    <GradientStop Color="#991B1B" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+
     <!-- DNS Radio Item -->
     <Style x:Key="DnsRadioItem" TargetType="RadioButton">
         <Setter Property="Height" Value="40" />

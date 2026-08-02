@@ -600,7 +600,7 @@ $sc.Save()
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\RobloxImageFix");
             if (key == null) return;
             key.SetValue("DisplayName", "Roblox Image Fix");
-            key.SetValue("DisplayVersion", "1.0.0");
+            key.SetValue("DisplayVersion", "1.2.0");
             key.SetValue("Publisher", "Roblox Image Fix");
             key.SetValue("DisplayIcon", Path.Combine(Program.GetInstallDir(), "app.ico"));
             key.SetValue("UninstallString", $"\"{Path.Combine(Program.GetInstallDir(), "RobloxImageFix.exe")}\" /uninstall");

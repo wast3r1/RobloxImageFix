@@ -705,6 +705,25 @@
 
                                         <Border Style="{StaticResource GlassCard}" Padding="20" Margin="0,12,0,0">
                                             <StackPanel>
+                                                <TextBlock Text="🧾  Auto Hosts"
+                                                           FontSize="15"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <TextBlock Text="Automatically add tr.rbxcdn.com + Roblox entries to hosts on startup"
+                                                           FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,4,0,10" />
+                                                <CheckBox x:Name="autoHostsCheck"
+                                                           Content="Add hosts entries on startup"
+                                                           FontSize="14"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Checked="AutoHosts_Toggled"
+                                                           Unchecked="AutoHosts_Toggled" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Style="{StaticResource GlassCard}" Padding="20" Margin="0,12,0,0">
+                                            <StackPanel>
                                                 <TextBlock Text="🧪  DNS Analyzer"
                                                            FontSize="15"
                                                            FontWeight="SemiBold"
@@ -851,7 +870,7 @@
                                                     <Run Text=" — DNS Configuration Tool" FontSize="14"
                                                          Foreground="{StaticResource TextSecondaryBrush}" />
                                                 </TextBlock>
-                                                <TextBlock Text="Версия 1.0.0"
+                                                <TextBlock Text="Версия 1.2.0"
                                                            FontSize="13"
                                                            Foreground="{StaticResource TextSecondaryBrush}"
                                                            Margin="0,6,0,10" />
@@ -885,6 +904,20 @@
                                                         <TextBlock Text="✈" FontSize="16" Margin="0,0,8,0"
                                                                    VerticalAlignment="Center" />
                                                         <TextBlock Text="Telegram"
+                                                                   FontSize="14" FontWeight="Bold"
+                                                                   VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button x:Name="uninstallBtn"
+                                                        Height="38" Width="220"
+                                                        HorizontalAlignment="Left"
+                                                        Margin="0,12,0,0"
+                                                        Style="{StaticResource DangerButton}"
+                                                        Click="Uninstall_Click">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🗑" FontSize="15" Margin="0,0,8,0"
+                                                                   VerticalAlignment="Center" />
+                                                        <TextBlock Text="Uninstall"
                                                                    FontSize="14" FontWeight="Bold"
                                                                    VerticalAlignment="Center" />
                                                     </StackPanel>

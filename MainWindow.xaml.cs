@@ -2,10 +2,14 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Windows;
+using Microsoft.Win32;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -67,10 +71,66 @@ public partial class MainWindow : Window
         "95.182.120.241 cdn.arkoselabs.com",
     ];
 
+    private static readonly string[] TrRbxcdnFallback =
+    [
+        "3.171.117.54 tr.rbxcdn.com",
+        "3.171.117.73 tr.rbxcdn.com",
+        "3.164.195.121 tr.rbxcdn.com",
+        "18.65.39.105 tr.rbxcdn.com",
+        "2.20.245.170 tr.rbxcdn.com",
+    ];
+
+    private static async Task<(List<string> entries, bool usedFallback)> GetFreshTrRbxcdnEntriesAsync()
+    {
+        var ips = new List<string>();
+
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(6) };
+            var json = await client.GetStringAsync("https://dns.google/resolve?name=tr.rbxcdn.com&type=A");
+            var root = JsonNode.Parse(json);
+            if (root?["Answer"] is JsonArray answers)
+            {
+                foreach (var answer in answers)
+                {
+                    if (answer?["type"]?.GetValue<int>() == 1 && answer["data"] is JsonValue data)
+                    {
+                        var ip = data.GetValue<string>();
+                        if (!ips.Contains(ip)) ips.Add(ip);
+                    }
+                }
+            }
+        }
+        catch { }
+
+        if (ips.Count == 0)
+        {
+            try
+            {
+                foreach (var ip in await Dns.GetHostAddressesAsync("tr.rbxcdn.com"))
+                {
+                    var s = ip.ToString();
+                    if (!ips.Contains(s)) ips.Add(s);
+                }
+            }
+            catch { }
+        }
+
+        if (ips.Count > 0)
+            return (ips.Select(ip => $"{ip} tr.rbxcdn.com").ToList(), false);
+
+        return (TrRbxcdnFallback.ToList(), true);
+    }
+
     public MainWindow()
     {
         InitializeComponent();
         CheckAdmin();
+        if (RunUninstallIfRequested())
+        {
+            Close();
+            return;
+        }
         _currentNav = navDashboard;
         foreach (var rb in new[] { dnsGeohide, dnsGeohideAlt, dnsGeohide1, dnsCloudflare, dnsGoogle, dnsQuad9, dnsOpenDns, dnsCustom })
         {
@@ -79,6 +139,24 @@ public partial class MainWindow : Window
         UpdateDnsDisplay("dnsGeohide");
         RefreshAdaptersDisplay();
         autorunCheck.IsChecked = IsAutorunEnabled();
+        autoHostsCheck.IsChecked = IsAutoHostsEnabled();
+        Loaded += OnMainWindowLoaded;
+    }
+
+    private async void OnMainWindowLoaded(object sender, RoutedEventArgs e)
+    {
+        if (autoHostsCheck.IsChecked != true) return;
+        try
+        {
+            var (added, _) = await ApplyHostsAsync();
+            LogOperation(added > 0
+                ? $"Auto-added {added} hosts entries on startup"
+                : "Auto-hosts: all entries already present");
+        }
+        catch (Exception ex)
+        {
+            LogOperation($"Auto-hosts error: {ex.Message}");
+        }
     }
 
     private static void CheckAdmin()
@@ -93,14 +171,92 @@ public partial class MainWindow : Window
 
             if (result == MessageBoxResult.Yes)
             {
+                var args = Environment.GetCommandLineArgs().Skip(1);
                 var psi = new ProcessStartInfo(Environment.ProcessPath!)
                 {
                     Verb = "runas",
                     UseShellExecute = true
                 };
+                if (args.Any()) psi.Arguments = string.Join(" ", args);
                 try { Process.Start(psi); } catch { }
             }
             Environment.Exit(0);
+        }
+    }
+
+    private static bool RunUninstallIfRequested()
+    {
+        if (!Environment.GetCommandLineArgs().Any(a => a.Equals("/uninstall", StringComparison.OrdinalIgnoreCase)))
+            return false;
+        return RunUninstallFlow();
+    }
+
+    private static bool RunUninstallFlow()
+    {
+        var confirm = MessageBox.Show(
+            "Uninstall Roblox Image Fix?\n\nThis will remove the app files, shortcuts, autorun entry and the registry uninstall entry.\nDNS and hosts changes will not be touched.",
+            "Roblox Image Fix — Uninstall",
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+            return false;
+
+        try
+        {
+            var shortcuts = new List<string>();
+            foreach (var folder in new[] { Environment.SpecialFolder.CommonStartMenu, Environment.SpecialFolder.StartMenu, Environment.SpecialFolder.CommonDesktopDirectory, Environment.SpecialFolder.Desktop })
+            {
+                var dir = Environment.GetFolderPath(folder);
+                if (string.IsNullOrEmpty(dir)) continue;
+                shortcuts.Add(Path.Combine(dir, "Roblox Image Fix.lnk"));
+                shortcuts.Add(Path.Combine(Path.Combine(dir, "Programs"), "Roblox Image Fix.lnk"));
+            }
+            foreach (var lnk in shortcuts.Distinct())
+            {
+                if (File.Exists(lnk)) File.Delete(lnk);
+            }
+
+            using (var uninstallKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", true))
+                uninstallKey?.DeleteSubKey("RobloxImageFix", false);
+
+            RemoveAutorunIfPresent();
+
+            var installDir = Path.GetDirectoryName(Environment.ProcessPath) ?? "";
+            if (Directory.Exists(installDir) && installDir.StartsWith(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), StringComparison.OrdinalIgnoreCase))
+            {
+                var bat = Path.Combine(Path.GetTempPath(), $"rif-uninstall-{Guid.NewGuid():N}.bat");
+                File.WriteAllText(bat,
+                    $"@echo off\r\ntimeout /t 2 /nobreak >nul\r\nrd /s /q \"{installDir}\"\r\ndel \"%~f0\"\r\n");
+                Process.Start(new ProcessStartInfo(bat) { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
+            }
+
+            MessageBox.Show("Roblox Image Fix has been uninstalled.",
+                "Roblox Image Fix", MessageBoxButton.OK, MessageBoxImage.Information);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Uninstall error: {ex.Message}",
+                "Roblox Image Fix", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
+    }
+
+    private static void RemoveAutorunIfPresent()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+            key?.DeleteValue("RobloxImageFix", false);
+        }
+        catch { }
+    }
+
+    private void Uninstall_Click(object sender, RoutedEventArgs e)
+    {
+        if (RunUninstallFlow())
+        {
+            Close();
         }
     }
 
@@ -450,8 +606,14 @@ public partial class MainWindow : Window
         {
             var hostsPath = @"C:\Windows\System32\drivers\etc\hosts";
             var existing = await File.ReadAllLinesAsync(hostsPath);
-            var filtered = existing.Where(l => !HostsEntries.Any(e =>
-                l.Trim().Equals(e, StringComparison.OrdinalIgnoreCase))).ToArray();
+            var filtered = existing.Where(l =>
+            {
+                var t = l.Trim();
+                if (string.IsNullOrEmpty(t) || t.StartsWith("#", StringComparison.Ordinal)) return true;
+                if (HostsEntries.Any(he => t.Equals(he, StringComparison.OrdinalIgnoreCase))) return false;
+                if (t.Contains("tr.rbxcdn.com", StringComparison.OrdinalIgnoreCase)) return false;
+                return true;
+            }).ToArray();
             var removed = existing.Length - filtered.Length;
 
             if (removed > 0)
@@ -520,21 +682,8 @@ public partial class MainWindow : Window
 
         try
         {
-            var hostsPath = @"C:\Windows\System32\drivers\etc\hosts";
-            var existing = File.ReadAllLines(hostsPath);
-            var added = 0;
-
-            foreach (var entry in HostsEntries)
-            {
-                if (!existing.Any(l => l.Trim().Equals(entry, StringComparison.OrdinalIgnoreCase)))
-                    existing = [..existing, entry];
-                added++;
-            }
-
-            await File.WriteAllLinesAsync(hostsPath, existing);
-            LogOperation($"Added {added} hosts entries");
-
-            hostsMessage.Text = $"✔ Added {added} hosts entries";
+            var (addedCount, usedFallback) = await ApplyHostsAsync();
+            hostsMessage.Text = $"✔ Added {addedCount} hosts entries ({(usedFallback ? "fallback IPs" : "fresh IPs")})";
             hostsMessage.Foreground = FindResource("SuccessBrush") as Brush;
         }
         catch (Exception ex)
@@ -548,6 +697,46 @@ public partial class MainWindow : Window
             hostsMessage.Visibility = Visibility.Visible;
             hostsButton.IsEnabled = true;
         }
+    }
+
+    private async Task<(int added, bool usedFallback)> ApplyHostsAsync()
+    {
+        var hostsPath = @"C:\Windows\System32\drivers\etc\hosts";
+
+        var backupDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RobloxImageFix");
+        Directory.CreateDirectory(backupDir);
+        File.Copy(hostsPath, Path.Combine(backupDir, "hosts.backup"), true);
+
+        var (fresh, usedFallback) = await GetFreshTrRbxcdnEntriesAsync();
+        LogOperation(usedFallback
+            ? "tr.rbxcdn.com: fresh IPs unavailable, using fallback list"
+            : $"tr.rbxcdn.com: got {fresh.Count} fresh IPs from dns.google");
+
+        var unique = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var target = new List<string>();
+        foreach (var entry in HostsEntries.Concat(fresh))
+        {
+            var trimmed = entry.Trim();
+            if (unique.Add(trimmed)) target.Add(trimmed);
+        }
+
+        var existing = File.ReadAllLines(hostsPath);
+        var existingSet = new HashSet<string>(existing.Select(l => l.Trim()), StringComparer.OrdinalIgnoreCase);
+        var addedCount = 0;
+        foreach (var entry in target)
+        {
+            if (!existingSet.Contains(entry))
+            {
+                existing = [..existing, entry];
+                existingSet.Add(entry);
+                addedCount++;
+            }
+        }
+
+        await File.WriteAllLinesAsync(hostsPath, existing);
+        LogOperation($"Added {addedCount} hosts entries ({(usedFallback ? "fallback IPs" : "fresh IPs")})");
+        return (addedCount, usedFallback);
     }
 
     private void OpenTelegram_Click(object sender, RoutedEventArgs e)
@@ -581,6 +770,26 @@ public partial class MainWindow : Window
             return key?.GetValue("RobloxImageFix") != null;
         }
         catch { return false; }
+    }
+
+    private void AutoHosts_Toggled(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\RobloxImageFix");
+            key.SetValue("AutoHosts", autoHostsCheck.IsChecked == true ? "1" : "0");
+        }
+        catch { }
+    }
+
+    private static bool IsAutoHostsEnabled()
+    {
+        try
+        {
+            var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\RobloxImageFix");
+            return key?.GetValue("AutoHosts") as string != "0";
+        }
+        catch { return true; }
     }
 
     private void AnimateProgressBar()

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Text;
 
@@ -529,27 +530,46 @@ class SetupWizard : Form
 
     private void InstallAppFiles()
     {
-        var appDir = Path.GetDirectoryName(Environment.ProcessPath);
-        if (appDir == null) throw new Exception("Cannot determine source directory");
-
-        var srcDir = Path.Combine(appDir, "App");
-        if (!Directory.Exists(srcDir))
-            srcDir = appDir;
-        if (!Directory.Exists(srcDir))
-            throw new Exception("Source files not found");
-
         var installDir = Program.GetInstallDir();
         Directory.CreateDirectory(installDir);
 
-        var files = Directory.GetFiles(srcDir, "*");
-        for (int i = 0; i < files.Length; i++)
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var appDir = Path.GetDirectoryName(Environment.ProcessPath);
+        var srcDir = appDir != null ? Path.Combine(appDir, "App") : null;
+
+        // Prefer the embedded bundle (always the freshly built version).
+        using (var stream = assembly.GetManifestResourceStream("AppBundle.zip"))
         {
-            var name = Path.GetFileName(files[i]);
-            if (name.StartsWith("RobloxImageFix-Setup", StringComparison.OrdinalIgnoreCase))
-                continue;
-            File.Copy(files[i], Path.Combine(installDir, name), true);
-            progressBar.Value = 30 + (int)((double)(i + 1) / files.Length * 50);
+            if (stream != null)
+            {
+                using var zip = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
+                var entries = zip.Entries.Where(en => !string.IsNullOrEmpty(en.Name)).ToList();
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    var entry = entries[i];
+                    var dest = Path.Combine(installDir, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    entry.ExtractToFile(dest, true);
+                    progressBar.Value = 30 + (int)((double)(i + 1) / entries.Count * 50);
+                }
+                return;
+            }
         }
+
+        // Fallback: a portable App folder next to the setup exe.
+        if (srcDir != null && Directory.Exists(srcDir))
+        {
+            var files = Directory.GetFiles(srcDir, "*");
+            for (int i = 0; i < files.Length; i++)
+            {
+                var name = Path.GetFileName(files[i]);
+                File.Copy(files[i], Path.Combine(installDir, name), true);
+                progressBar.Value = 30 + (int)((double)(i + 1) / files.Length * 50);
+            }
+            return;
+        }
+
+        throw new Exception("Application files not found (embedded bundle missing)");
     }
 
     private void CreateShortcuts()

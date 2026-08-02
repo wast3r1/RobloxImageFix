@@ -13,7 +13,13 @@ dotnet publish $root\RobloxImageFix.csproj -c Release -o (Join-Path $dist "App")
 if ($LASTEXITCODE -ne 0) { throw "Main build failed" }
 Copy-Item "$root\app.ico" (Join-Path $dist "App\app.ico") -ErrorAction SilentlyContinue
 
-Write-Host "=== Building setup (self-contained single-file) ==="
+Write-Host "=== Packing app into embedded bundle ==="
+$bundle = Join-Path $setupRoot "AppBundle.zip"
+Remove-Item $bundle -ErrorAction SilentlyContinue
+Compress-Archive -Path (Join-Path $dist "App\*") -DestinationPath $bundle -CompressionLevel Optimal
+if (-not (Test-Path $bundle)) { throw "Failed to create AppBundle.zip" }
+
+Write-Host "=== Building setup (self-contained single-file, app embedded) ==="
 dotnet publish $setupRoot\Setup.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o $tmpPublish -nologo
 if ($LASTEXITCODE -ne 0) { throw "Setup build failed" }
 
@@ -22,6 +28,7 @@ Copy-Item (Join-Path $tmpPublish "RobloxImageFix-Setup.exe") $dist
 Copy-Item (Join-Path $tmpPublish "*.dll") $dist -ErrorAction SilentlyContinue
 
 Remove-Item $tmpPublish -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item $bundle -Force -ErrorAction SilentlyContinue
 
 Write-Host "=== Done ==="
 Write-Host "Distribution: $dist"
